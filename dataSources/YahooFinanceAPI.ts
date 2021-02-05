@@ -49,7 +49,6 @@ class YahooFinanceAPI extends RESTDataSource {
           forwardDividendAndYield: rightSummaryTableData['Forward Dividend & Yield'],
           exDividendDate: rightSummaryTableData['Ex-Dividend Date'],
           thisYearTargetEst: rightSummaryTableData['1y Target Est'],
-          cacheId: `${code}:${fetchedAt.getFullYear()}-${fetchedAt.getMonth() + 1}-${fetchedAt.getDate()}`,
           fetchedAt: fetchedAt.toISOString(),
         }
 

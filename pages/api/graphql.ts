@@ -43,7 +43,6 @@ const typeDefs = gql`
     forwardDividendAndYield: String!
     exDividendDate: String!
     thisYearTargetEst: String!
-    cacheId: String!
     fetchedAt: String!
   }
 
