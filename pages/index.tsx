@@ -1,7 +1,11 @@
-import { Button, message, Popconfirm, Select, Space, Table, Tag, Typography } from "antd"
+import { Button, InputNumber, message, Popconfirm, Select, Space, Table, Tag, Typography } from "antd"
 import { gql, useLazyQuery, useQuery } from "@apollo/client";
-import { useCallback, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import formatNumber from "../utils/formatNumber";
+import { getRecommendedStatus, userDataCache } from '../utils/apolloClient';
+
+import styles from '../styles/Home.module.css';
 
 const STOCK_SUMMARIES_QUERY = gql`
   query stockSummaries($yhCodeList: [String!]!) {
@@ -25,6 +29,10 @@ const STOCK_SUMMARIES_QUERY = gql`
       exDividendDate
       thisYearTargetEst
       fetchedAt
+      userData @client {
+        status
+        unitPrice
+      }
     }
   }
 `;
@@ -65,24 +73,6 @@ export default function Home() {
     },
   ] = useLazyQuery(STOCK_SEARCHES_QUERY)
   const { data, loading, previousData } = useQuery(STOCK_SUMMARIES_QUERY, { variables: { yhCodeList } });
-  const [userRowData, setUserRowData] = useReducer(
-    (s, a) => ([...s, ...a]),
-    [
-      { code: 'MSFT', unitPrice: 10000, status: 'hold' },
-      { code: 'WORK', unitPrice: 2000, status: 'hold' },
-      { code: 'AAPL', unitPrice: 3000, status: 'hold' },
-      { code: 'BABA', unitPrice: 1000, status: 'hold' },
-    ],
-    (initialState) => {
-      try {
-        return initialState;
-        // const cache = JSON.parse(localStorage.getItem('_userPorfolioData') || '[]');
-        // return cache;
-      } catch (e) {
-        return initialState;
-      }
-    },
-  );
 
   const handleSearch = (value: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -118,10 +108,7 @@ export default function Home() {
   }, [])
 
   const columns = useMemo(() => createColumns({ createDeleteClick }), [createDeleteClick])
-  const dataSource = (data?.stockSummaries || previousData?.stockSummaries || []).map((item) => {
-    const { code, ...rest } = userRowData.find(row => row.code === item.code) || {};
-    return { ...item, ...rest };
-  });
+  const dataSource = (data?.stockSummaries || previousData?.stockSummaries || []);
 
   return (
     <div style={{ padding: 24 }}>
@@ -154,12 +141,63 @@ export default function Home() {
             loading={loading}
             columns={columns}
             dataSource={dataSource}
+            rowClassName={styles.row}
             rowKey={record => record.code}
           />
         </Space>
       </Space>
     </div>
   )
+}
+const EditableUnitPriceCell = ({ record, unitPrice }: { record: Record<string, any>; unitPrice: string }) => {
+  const { code } = record;
+  const intUnitPrice = parseInt(unitPrice || '0', 10);
+  const inputRef = useRef<HTMLInputElement>();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(intUnitPrice);
+
+  const handleToggle = () => setEditing(prev => !prev);
+
+  const handleChange = (value: number) => setValue(value);
+
+  const handleSave = () => {
+    const strUnitPrice = value.toString();
+    const prev = userDataCache();
+    const next = {
+      ...prev,
+      [code]: {
+        unitPrice: strUnitPrice,
+        status: getRecommendedStatus(value),
+      },
+    };
+    userDataCache(next);
+    localStorage.setItem(`_${code}unitPrice`, strUnitPrice);
+    handleToggle();
+  }
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [editing]);
+
+  return editing ? (
+    <InputNumber
+      min={0}
+      ref={inputRef}
+      value={value}
+      onBlur={handleSave}
+      onChange={handleChange}
+      onPressEnter={handleSave}
+      className={styles.unitPriceInput}
+      parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+      formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+    />
+  ) : (
+    <div onClick={handleToggle} className={styles.unitPrice}>
+      $ {formatNumber(value.toString())}
+    </div>
+  );
 }
 
 const createColumns = ({ createDeleteClick }) => [
@@ -192,17 +230,19 @@ const createColumns = ({ createDeleteClick }) => [
     },
   },
   {
-    title: "Unit Price",
-    dataIndex: "unitPrice",
-    align: 'right' as const,
-    render: (unitPrice) => formatNumber(unitPrice),
+    title: () => <div className={styles.unitPriceTitle}>Unit Price</div>,
+    dataIndex: ['userData', 'unitPrice'],
+    render: (unitPrice, record) => {
+      return <EditableUnitPriceCell unitPrice={unitPrice} record={record} />
+    },
   },
   {
     title: 'Status',
-    dataIndex: 'status',
+    dataIndex: ['userData', 'status'],
     align: 'center' as const,
     render: (status) => {
-      return <Tag>{status.toUpperCase()}</Tag>
+      const color = status === 'buy' ? 'green' : status === 'sell' ? 'red' : undefined;
+      return <Tag color={color}>{status.toUpperCase()}</Tag>
     }
   },
   {

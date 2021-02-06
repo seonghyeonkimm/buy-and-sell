@@ -1,13 +1,62 @@
 import { useMemo } from "react";
-import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client";
+import { ApolloClient, gql, HttpLink, InMemoryCache, makeVar } from "@apollo/client";
 
 let apolloClient;
 
+const typeDefs  = gql`
+  extend type StockSummary {
+    status: String!
+    unitPrice: String!
+  }
+`;
+
+export const getRecommendedStatus = (unitPrice: number) => {
+  if (unitPrice >= 50) {
+    return 'sell';
+  }
+
+  if (unitPrice >= 30) {
+    return 'hold';
+  }
+
+  return 'buy';
+}
+
+export const userDataCache =
+  makeVar<Record<string, { status?: string; unitPrice?: string; }>>({});
+
 function createApolloClient() {
   return new ApolloClient({
-    cache: new InMemoryCache(),
+    typeDefs,
     ssrMode: typeof window === 'undefined',
     link: new HttpLink({ uri: '/api/graphql' }),
+    cache: new InMemoryCache({
+      typePolicies: {
+        StockSummary: {
+          fields: {
+            userData: {
+              read(_, { readField }) {
+                const code = readField('code') as string;
+                const prev = userDataCache();
+
+                if (!prev[code]) {
+                  const unitPrice = localStorage.getItem(`_${code}unitPrice`) || '0';
+                  userDataCache({
+                    ...prev,
+                    [code]: {
+                      unitPrice,
+                      status: getRecommendedStatus(parseInt(unitPrice, 10)),
+                    }
+                  });
+                }
+
+                return userDataCache()[code];
+              }
+            },
+          }
+        }
+      }
+    }),
   });
 }
 
