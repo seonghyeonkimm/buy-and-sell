@@ -5,7 +5,7 @@ import dataSources from "../../dataSources";
 
 const typeDefs = gql`
   type Query {
-    stockSearches(q: String!): StockSearch!
+    stockSearches(q: String!): StockSearch! @cacheControl(maxAge: 86400)
     stockSummaries(input: StockSummaryInput): [StockSummary]!
       @cacheControl(maxAge: 3600)
   }
