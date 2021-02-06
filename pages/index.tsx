@@ -111,7 +111,7 @@ export default function Home() {
   const dataSource = (data?.stockSummaries || previousData?.stockSummaries || []);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={styles.container}>
       <Space direction="vertical" style={{ width: '100%' }}>
         <Typography.Title level={2}>My Portfolio</Typography.Title>
         <Space direction="vertical" style={{ width: '100%' }}>

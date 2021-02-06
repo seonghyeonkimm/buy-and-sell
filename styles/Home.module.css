@@ -1,3 +1,8 @@
+.container {
+  padding: 24px;
+  min-width: 1240px;
+  overflow: hidden;
+}
 .unitPriceTitle {
   padding-left: 12px;
 }
