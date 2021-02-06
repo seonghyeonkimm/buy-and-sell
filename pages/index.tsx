@@ -14,7 +14,7 @@ export default function Home() {
             onChange={(value, option) => ({})}
             onSearch={(value) => ({})}
           >
-            <Select.Option key={0}>Option 1</Select.Option>
+            <Select.Option key={0} value={0}>Option 1</Select.Option>
           </Select>
           <Button
             type="primary"
