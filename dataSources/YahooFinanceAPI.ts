@@ -12,7 +12,10 @@ class YahooFinanceAPI extends RESTDataSource {
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`
     );
 
-    return { quotes, news };
+    return {
+      news,
+      quotes: quotes.filter((quote) => quote.typeDisp === 'Equity'),
+    };
   }
 
   async getSummaries(yhCodeList: string[]) {

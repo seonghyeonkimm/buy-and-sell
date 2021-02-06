@@ -32,7 +32,7 @@ const typeDefs = gql`
     score: String!,
     typeDisp: String!
     quoteType: String!
-    longname: String!
+    longname: String
     shortname: String!
     isYahooFinance: Boolean!
   }
