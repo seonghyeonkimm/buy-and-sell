@@ -1,6 +1,8 @@
 import { Button, message, Popconfirm, Select, Space, Table, Tag, Typography } from "antd"
 import { gql, useLazyQuery, useQuery } from "@apollo/client";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useReducer, useRef, useState } from "react";
+import { stat } from "fs";
+import formatNumber from "../utils/formatNumber";
 
 const STOCK_SUMMARIES_QUERY = gql`
   query stockSummaries($yhCodeList: [String!]!) {
@@ -56,7 +58,6 @@ export default function Home() {
       return [];
     }
   });
-  const { data, loading, previousData } = useQuery(STOCK_SUMMARIES_QUERY, { variables: { yhCodeList } });
   const [
     getStockSearches,
     {
@@ -64,6 +65,25 @@ export default function Home() {
       loading: isSearchLoading,
     },
   ] = useLazyQuery(STOCK_SEARCHES_QUERY)
+  const { data, loading, previousData } = useQuery(STOCK_SUMMARIES_QUERY, { variables: { yhCodeList } });
+  const [userRowData, setUserRowData] = useReducer(
+    (s, a) => ([...s, ...a]),
+    [
+      { code: 'MSFT', unitPrice: 10000, status: 'hold' },
+      { code: 'WORK', unitPrice: 2000, status: 'hold' },
+      { code: 'AAPL', unitPrice: 3000, status: 'hold' },
+      { code: 'BABA', unitPrice: 1000, status: 'hold' },
+    ],
+    (initialState) => {
+      try {
+        return initialState;
+        // const cache = JSON.parse(localStorage.getItem('_userPorfolioData') || '[]');
+        // return cache;
+      } catch (e) {
+        return initialState;
+      }
+    },
+  );
 
   const handleSearch = (value: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -99,7 +119,10 @@ export default function Home() {
   }, [])
 
   const columns = useMemo(() => createColumns({ createDeleteClick }), [createDeleteClick])
-
+  const dataSource = (data?.stockSummaries || previousData?.stockSummaries || []).map((item) => {
+    const { code, ...rest } = userRowData.find(row => row.code === item.code) || {};
+    return { ...item, ...rest };
+  });
 
   return (
     <div style={{ padding: 24 }}>
@@ -131,8 +154,8 @@ export default function Home() {
             bordered
             loading={loading}
             columns={columns}
+            dataSource={dataSource}
             rowKey={record => record.code}
-            dataSource={data?.stockSummaries || previousData?.stockSummaries}
           />
         </Space>
       </Space>
@@ -172,17 +195,15 @@ const createColumns = ({ createDeleteClick }) => [
   {
     title: "Unit Price",
     dataIndex: "unitPrice",
-  },
-  {
-    title: "Buying Price",
-    dataIndex: "buyingPrice",
+    align: 'right' as const,
+    render: (unitPrice) => formatNumber(unitPrice),
   },
   {
     title: 'Status',
     dataIndex: 'status',
     align: 'center' as const,
-    render: () => {
-      return <Tag>Hold</Tag>
+    render: (status) => {
+      return <Tag>{status.toUpperCase()}</Tag>
     }
   },
   {
