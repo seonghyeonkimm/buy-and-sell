@@ -1,7 +1,6 @@
 import { Button, message, Popconfirm, Select, Space, Table, Tag, Typography } from "antd"
 import { gql, useLazyQuery, useQuery } from "@apollo/client";
 import { useCallback, useMemo, useReducer, useRef, useState } from "react";
-import { stat } from "fs";
 import formatNumber from "../utils/formatNumber";
 
 const STOCK_SUMMARIES_QUERY = gql`
