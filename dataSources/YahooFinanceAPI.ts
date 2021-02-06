@@ -1,4 +1,4 @@
-import { RequestOptions, RESTDataSource } from "apollo-datasource-rest";
+import { RESTDataSource } from "apollo-datasource-rest";
 import cheerio from 'cheerio';
 
 class YahooFinanceAPI extends RESTDataSource {
