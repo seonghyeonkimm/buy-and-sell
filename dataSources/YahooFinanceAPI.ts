@@ -1,4 +1,4 @@
-import { RESTDataSource } from "apollo-datasource-rest";
+import { RequestOptions, RESTDataSource } from "apollo-datasource-rest";
 import cheerio from 'cheerio';
 
 class YahooFinanceAPI extends RESTDataSource {
@@ -7,53 +7,71 @@ class YahooFinanceAPI extends RESTDataSource {
     this.baseURL = "https://finance.yahoo.com";
   }
 
+  async getStockSearch(q: string) {
+    const { quotes, news } = await this.get(
+      `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`
+    );
+
+    return { quotes, news };
+  }
+
   async getSummaries(yhCodeList: string[]) {
     const yahooData = await Promise.all(
-      yhCodeList.map(code => (async () => {
-        const html = await this.get(`/quote/${code}`)
-        const $ = cheerio.load(html);
+      yhCodeList.map((code) =>
+        (async () => {
+          const html = await this.get(`/quote/${code}`);
+          const $ = cheerio.load(html);
 
-        const companyName = $('title').text().split(' Stock Price')[0];
+          const companyName = $("title").text().split(" Stock Price")[0];
 
-        const leftSummaryTableData = {}
-        $('[data-test="left-summary-table"] tr')
-          .each((_, element) => {
+          const leftSummaryTableData = {};
+          $('[data-test="left-summary-table"] tr').each((_, element) => {
             const $tr = $(element);
-            leftSummaryTableData[$tr.children().first().text()] = $tr.children().last().text();
+            leftSummaryTableData[
+              $tr.children().first().text()
+            ] = $tr.children().last().text();
           });
 
-        const rightSummaryTableData = {}
-        $('[data-test="right-summary-table"] tr')
-          .each((_, element) => {
+          const rightSummaryTableData = {};
+          $('[data-test="right-summary-table"] tr').each((_, element) => {
             const $tr = $(element);
-            rightSummaryTableData[$tr.children().first().text()] = $tr.children().last().text();
+            rightSummaryTableData[
+              $tr.children().first().text()
+            ] = $tr.children().last().text();
           });
 
-        const fetchedAt = new Date();
-        const result = {
-          code,
-          companyName,
-          previousClose: leftSummaryTableData['Previous Close'],
-          open: leftSummaryTableData['Open'],
-          bid: leftSummaryTableData['Bid'],
-          ask: leftSummaryTableData['Ask'],
-          daysRange: leftSummaryTableData['Day\'s Range'],
-          yearRange: leftSummaryTableData['52 Week Range'],
-          volume: leftSummaryTableData['Volume'],
-          avgVolume: leftSummaryTableData['Avg. Volume'],
-          marketCap: rightSummaryTableData['Market Cap'],
-          beta: rightSummaryTableData['Beta (5Y Monthly)'],
-          peRatio: rightSummaryTableData['PE Ratio (TTM)'],
-          eps: rightSummaryTableData['EPS (TTM)'],
-          earningsDate: rightSummaryTableData['Earnings Date'],
-          forwardDividendAndYield: rightSummaryTableData['Forward Dividend & Yield'],
-          exDividendDate: rightSummaryTableData['Ex-Dividend Date'],
-          thisYearTargetEst: rightSummaryTableData['1y Target Est'],
-          fetchedAt: fetchedAt.toISOString(),
-        }
+          const summaryTableData = {
+            ...leftSummaryTableData,
+            ...rightSummaryTableData
+          };
 
-        return result;
-      })())
+          const fetchedAt = new Date();
+          const result = {
+            code,
+            companyName,
+            previousClose: summaryTableData["Previous Close"],
+            open: summaryTableData["Open"],
+            bid: summaryTableData["Bid"],
+            ask: summaryTableData["Ask"],
+            daysRange: summaryTableData["Day's Range"],
+            yearRange: summaryTableData["52 Week Range"],
+            volume: summaryTableData["Volume"],
+            avgVolume: summaryTableData["Avg. Volume"],
+            marketCap: summaryTableData["Market Cap"],
+            beta: summaryTableData["Beta (5Y Monthly)"],
+            peRatio: summaryTableData["PE Ratio (TTM)"],
+            eps: summaryTableData["EPS (TTM)"],
+            earningsDate: summaryTableData["Earnings Date"],
+            forwardDividendAndYield:
+              summaryTableData["Forward Dividend & Yield"],
+            exDividendDate: summaryTableData["Ex-Dividend Date"],
+            thisYearTargetEst: summaryTableData["1y Target Est"],
+            fetchedAt: fetchedAt.toISOString(),
+          };
+
+          return result;
+        })()
+      )
     );
 
     return yahooData;
