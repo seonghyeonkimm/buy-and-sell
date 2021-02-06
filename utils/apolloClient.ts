@@ -45,7 +45,7 @@ function createApolloClient() {
                     ...prev,
                     [code]: {
                       unitPrice,
-                      status: getRecommendedStatus(parseInt(unitPrice, 10)),
+                      status: getRecommendedStatus(parseFloat(unitPrice)),
                     }
                   });
                 }

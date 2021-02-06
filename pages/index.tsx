@@ -151,7 +151,7 @@ export default function Home() {
 }
 const EditableUnitPriceCell = ({ record, unitPrice }: { record: Record<string, any>; unitPrice: string }) => {
   const { code } = record;
-  const intUnitPrice = parseInt(unitPrice || '0', 10);
+  const intUnitPrice = parseFloat(unitPrice || '0');
   const inputRef = useRef<HTMLInputElement>();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(intUnitPrice);
@@ -184,6 +184,7 @@ const EditableUnitPriceCell = ({ record, unitPrice }: { record: Record<string, a
   return editing ? (
     <InputNumber
       min={0}
+      precision={3}
       ref={inputRef}
       value={value}
       onBlur={handleSave}
