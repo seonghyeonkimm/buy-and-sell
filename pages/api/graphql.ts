@@ -6,7 +6,7 @@ import dataSources from "../../dataSources";
 const typeDefs = gql`
   type Query {
     stockSearches(q: String!): StockSearch! @cacheControl(maxAge: 86400)
-    stockSummaries(input: StockSummaryInput): [StockSummary]!
+    stockSummaries(yhCodeList: [String!]!): [StockSummary]!
       @cacheControl(maxAge: 3600)
   }
 
@@ -71,10 +71,6 @@ const typeDefs = gql`
     thisYearTargetEst: String!
     fetchedAt: String!
   }
-
-  input StockSummaryInput {
-    yhCodeList: [String!]!
-  }
 `;
 
 const resolvers = {
@@ -85,7 +81,7 @@ const resolvers = {
     },
     async stockSummaries(parent, args, { dataSources }) {
       const { yahooFinanceAPI } = dataSources;
-      return await yahooFinanceAPI.getSummaries(args.input.yhCodeList);
+      return await yahooFinanceAPI.getSummaries(args.yhCodeList);
     },
   },
 };
