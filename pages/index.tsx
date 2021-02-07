@@ -3,7 +3,7 @@ import { gql, useLazyQuery, useQuery } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import formatNumber from "../utils/formatNumber";
-import { getRecommendedStatus, userDataCache } from '../utils/apolloClient';
+import { makeUserData, userDataCache } from '../utils/apolloClient';
 
 import styles from '../styles/Home.module.css';
 
@@ -32,6 +32,7 @@ const STOCK_SUMMARIES_QUERY = gql`
       userData @client {
         status
         unitPrice
+        profitRate
       }
     }
   }
@@ -114,6 +115,57 @@ export default function Home() {
     <div className={styles.container}>
       <Space direction="vertical" style={{ width: '100%' }}>
         <Typography.Title level={2}>My Portfolio</Typography.Title>
+        <Typography.Paragraph>
+          <Typography.Text mark>How to generate status:</Typography.Text>
+          <br />
+          <Space direction="vertical">
+            <Typography.Text>
+              1) If you has profit:
+              <br/>
+              <Space direction="vertical">
+                <span>
+                  &nbsp;&nbsp; Return <Tag color="red">SELL</Tag>if profitRate is greater than 50% or peRatio is greater than 100%
+                </span>
+                <span>
+                  &nbsp;&nbsp; Return <Tag color="green">BUY</Tag>if eps is greater than 0 or peRatio is smaller than 50
+                </span>
+                <span>
+                  &nbsp;&nbsp; Return <Tag>HOLD</Tag>if eps is greater than 0
+                </span>
+              </Space>
+            </Typography.Text>
+            <Typography.Text>
+              2) If you has no profit:
+              <br/>
+              <Space direction="vertical">
+                <span>
+                  &nbsp;&nbsp; Return <Tag>HOLD</Tag>if profitRate is greater than -30%
+                </span>
+                <span>
+                  &nbsp;&nbsp; Return <Tag color="red">SELL</Tag>if peRatio is greater than 100
+                </span>
+                <span>
+                  &nbsp;&nbsp; Return <Tag color="green">BUY</Tag>if eps is greater than 0 or peRatio is smaller than 50
+                </span>
+                <span>
+                  &nbsp;&nbsp; Return <Tag>HOLD</Tag>if eps is greater than 0
+                </span>
+              </Space>
+            </Typography.Text>
+            <Typography.Text>
+              3) If you don't buy yet:
+              <br/>
+              <Space direction="vertical">
+                <span>
+                  &nbsp;&nbsp; Return <Tag>HOLD</Tag>if peRatio is greater than 100
+                </span>
+                <span>
+                  &nbsp;&nbsp; Return <Tag color="green">BUY</Tag>if eps is greater than 0
+                </span>
+              </Space>
+            </Typography.Text>
+          </Space>
+        </Typography.Paragraph>
         <Space direction="vertical" style={{ width: '100%' }}>
           <Space>
             <Select
@@ -149,29 +201,27 @@ export default function Home() {
     </div>
   )
 }
-const EditableUnitPriceCell = ({ record, unitPrice }: { record: Record<string, any>; unitPrice: string }) => {
+const EditableUnitPriceCell = ({ record, unitPrice }: { record: Record<string, any>; unitPrice: number }) => {
   const { code } = record;
-  const intUnitPrice = parseFloat(unitPrice || '0');
   const inputRef = useRef<HTMLInputElement>();
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(intUnitPrice);
+  const [value, setValue] = useState(unitPrice);
 
   const handleToggle = () => setEditing(prev => !prev);
 
   const handleChange = (value: number) => setValue(value);
 
   const handleSave = () => {
-    const strUnitPrice = value.toString();
     const prev = userDataCache();
     const next = {
       ...prev,
       [code]: {
-        unitPrice: strUnitPrice,
-        status: getRecommendedStatus(value),
+        unitPrice: value,
+        ...makeUserData({ unitPrice: value, ...record }),
       },
     };
     userDataCache(next);
-    localStorage.setItem(`_${code}unitPrice`, strUnitPrice);
+    localStorage.setItem(`_${code}unitPrice`, value.toString());
     handleToggle();
   }
 
@@ -184,7 +234,7 @@ const EditableUnitPriceCell = ({ record, unitPrice }: { record: Record<string, a
   return editing ? (
     <InputNumber
       min={0}
-      precision={3}
+      precision={value.toString().indexOf('.') > -1 ? 3 : undefined}
       ref={inputRef}
       value={value}
       onBlur={handleSave}
@@ -211,26 +261,27 @@ const createColumns = ({ createDeleteClick }) => [
     dataIndex: "companyName",
   },
   {
-    title: "Bid",
-    dataIndex: "bid",
+    title: "Previous Close",
+    dataIndex: "previousClose",
   },
   {
-    title: "Ask",
-    dataIndex: "ask",
+    title: "PE Ratio",
+    dataIndex: "peRatio",
   },
   {
-    title: "Day's Range",
-    dataIndex: "daysRange",
+    title: "EPS",
+    dataIndex: "eps",
   },
   {
-    title: "Date",
-    dataIndex: "fetchedAt",
-    render: (fetchedAt) => {
-      const date = new Date(fetchedAt);
-      return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+    title: "Earnings Date",
+    dataIndex: "earningsDate",
+    render: (earningsDate) => {
+      const [from, to] = earningsDate.split(' - ');
+      return to || from;
     },
   },
   {
+    width: 130,
     title: () => <div className={styles.unitPriceTitle}>Unit Price</div>,
     dataIndex: ['userData', 'unitPrice'],
     render: (unitPrice, record) => {
@@ -238,6 +289,23 @@ const createColumns = ({ createDeleteClick }) => [
     },
   },
   {
+    width: 120,
+    title: 'Profit Rate',
+    align: 'right' as const,
+    dataIndex: ['userData', 'profitRate'],
+    render: (profitRate) => {
+      const intProfitRate = parseInt(profitRate, 10);
+      return (
+        <Typography.Text
+          type={intProfitRate > 0 ? 'success' : intProfitRate === 0 ? undefined : 'danger'}
+        >
+          {intProfitRate}%
+        </Typography.Text>
+      );
+    },
+  },
+  {
+    width: 90,
     title: 'Status',
     dataIndex: ['userData', 'status'],
     align: 'center' as const,
@@ -247,6 +315,7 @@ const createColumns = ({ createDeleteClick }) => [
     }
   },
   {
+    width: 90,
     title: "Action",
     dataIndex: "code",
     align: "center" as const,
